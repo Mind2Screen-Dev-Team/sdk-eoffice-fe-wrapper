@@ -99,7 +99,7 @@ export default function Home() {
       const openToken = await generateOpenToken(apiKey, openTimestamp);
 
       const response = await fetch(
-        'https://stg-api-eoffice.mindtoscreen.com/eoffice/api/v1/sdk/auth/generate-nonce-public-key',
+        'https://dev-api-eoffice.mindtoscreen.com/eoffice/api/v1/sdk/auth/generate-nonce-public-key',
         {
           method: 'GET',
           headers: {
