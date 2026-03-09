@@ -78,8 +78,8 @@ async function generateOpenToken(apiKey: string, timestamp: string): Promise<str
 export default function Home() {
   const [apiKey, setApiKey] = useState("");
   const [nip, setNip] = useState("");
-  const [beUrl, setBeUrl] = useState("https://dev-api-eoffice.mindtoscreen.com");
-  const [feUrl, setFeUrl] = useState("https://stg-eoffice.mindtoscreen.com");
+  const [beUrl, setBeUrl] = useState("");
+  const [feUrl, setFeUrl] = useState("");
   const [token, setToken] = useState("");
   const [timestamp, setTimestamp] = useState("");
   const [nonce, setNonce] = useState("");
