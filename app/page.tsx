@@ -78,6 +78,8 @@ async function generateOpenToken(apiKey: string, timestamp: string): Promise<str
 export default function Home() {
   const [apiKey, setApiKey] = useState("");
   const [nip, setNip] = useState("");
+  const [beUrl, setBeUrl] = useState("https://dev-api-eoffice.mindtoscreen.com");
+  const [feUrl, setFeUrl] = useState("https://stg-eoffice.mindtoscreen.com");
   const [token, setToken] = useState("");
   const [timestamp, setTimestamp] = useState("");
   const [nonce, setNonce] = useState("");
@@ -86,20 +88,24 @@ export default function Home() {
   const [error, setError] = useState("");
 
   const generateSDKToken = async () => {
-    if (!apiKey || !nip) {
-      setError("Please enter both API Key and NIP");
+    if (!apiKey || !nip || !beUrl || !feUrl) {
+      setError("Please enter API Key, NIP, BE URL, and FE URL");
       return;
     }
 
     setLoading(true);
     setError("");
+    setToken("");
+    setTimestamp("");
+    setNonce("");
+    setSdkUrl("");
 
     try {
       const openTimestamp = Math.floor(Date.now() / 1000).toString();
       const openToken = await generateOpenToken(apiKey, openTimestamp);
 
       const response = await fetch(
-        'https://dev-api-eoffice.mindtoscreen.com/eoffice/api/v1/sdk/auth/generate-nonce-public-key',
+        `${beUrl}/eoffice/api/v1/sdk/auth/generate-nonce-public-key`,
         {
           method: 'GET',
           headers: {
@@ -110,10 +116,16 @@ export default function Home() {
       );
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch nonce: ${response.statusText}`);
+        const errorText = await response.text().catch(() => response.statusText);
+        throw new Error(`API Error (${response.status}): ${errorText}`);
       }
 
       const data = await response.json();
+      
+      if (!data.data || !data.data.nonce || !data.data.publicKey) {
+        throw new Error('Invalid API response: Missing nonce or publicKey');
+      }
+
       const serverNonce = data.data.nonce;
       const publicKey = data.data.publicKey;
 
@@ -136,10 +148,18 @@ export default function Home() {
       setTimestamp(sdkTimestamp);
       setNonce(serverNonce);
       setSdkUrl(
-        `https://stg-eoffice.mindtoscreen.com/sdk-eoffice?token=${encryptedToken}&timestamp=${sdkTimestamp}&nonce=${serverNonce}`
+        `${feUrl}/sdk-eoffice?token=${encryptedToken}&timestamp=${sdkTimestamp}&nonce=${serverNonce}`
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      let errorMessage = 'An error occurred';
+      
+      if (err instanceof TypeError && err.message.includes('fetch')) {
+        errorMessage = `Network Error: Unable to connect to ${beUrl}. This might be a CORS issue or the server is unreachable.`;
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
       console.error('Error generating SDK token:', err);
     } finally {
       setLoading(false);
@@ -187,10 +207,38 @@ export default function Home() {
             />
           </div>
 
+          {/* BE URL Input */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-semibold text-black dark:text-white">
+              BE URL
+            </label>
+            <input
+              type="text"
+              value={beUrl}
+              onChange={(e) => setBeUrl(e.target.value)}
+              placeholder="Enter Backend URL"
+              className="w-full px-4 py-3 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-black dark:text-white placeholder-zinc-500 dark:placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* FE URL Input */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-semibold text-black dark:text-white">
+              FE URL
+            </label>
+            <input
+              type="text"
+              value={feUrl}
+              onChange={(e) => setFeUrl(e.target.value)}
+              placeholder="Enter Frontend URL"
+              className="w-full px-4 py-3 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-black dark:text-white placeholder-zinc-500 dark:placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
           {/* Generate Button */}
           <button
             onClick={generateSDKToken}
-            disabled={loading || !apiKey || !nip}
+            disabled={loading || !apiKey || !nip || !beUrl || !feUrl}
             className="w-full px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-400 disabled:cursor-not-allowed text-white font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             {loading ? 'Generating...' : 'Generate SDK Token'}
@@ -203,14 +251,51 @@ export default function Home() {
             </div>
           )}
 
-          {/* Token Display */}
+          {/* Generated Values Display */}
           {token && (
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-semibold text-black dark:text-white">
-                Generated Token
-              </label>
-              <div className="w-full px-4 py-3 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 text-black dark:text-white font-mono text-xs break-all">
-                {token}
+            <div className="flex flex-col gap-4 p-6 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900">
+              <h3 className="text-lg font-semibold text-black dark:text-white">
+                Generated Values
+              </h3>
+              
+              {/* Token */}
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-black dark:text-white">
+                  Token
+                </label>
+                <div className="w-full px-4 py-3 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-black text-black dark:text-white font-mono text-xs break-all">
+                  {token}
+                </div>
+              </div>
+
+              {/* Timestamp */}
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-black dark:text-white">
+                  Timestamp
+                </label>
+                <div className="w-full px-4 py-3 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-black text-black dark:text-white font-mono text-xs">
+                  {timestamp}
+                </div>
+              </div>
+
+              {/* Nonce */}
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-black dark:text-white">
+                  Nonce
+                </label>
+                <div className="w-full px-4 py-3 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-black text-black dark:text-white font-mono text-xs break-all">
+                  {nonce}
+                </div>
+              </div>
+
+              {/* SDK URL */}
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-black dark:text-white">
+                  SDK URL
+                </label>
+                <div className="w-full px-4 py-3 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-black text-black dark:text-white font-mono text-xs break-all">
+                  {sdkUrl}
+                </div>
               </div>
             </div>
           )}
@@ -218,8 +303,12 @@ export default function Home() {
           {/* SDK Embed Preview - Fullwidth */}
           {sdkUrl && (
             <div className="flex flex-col gap-2">
+              <h3 className="text-lg font-semibold text-black dark:text-white">
+                SDK Embed Preview
+              </h3>
               <div className="border border-zinc-300 dark:border-zinc-700 rounded-lg overflow-hidden">
                 <iframe
+                  key={sdkUrl}
                   src={sdkUrl}
                   className="w-full h-screen border-none bg-white dark:bg-zinc-900"
                   title="eOffice SDK Embed"
