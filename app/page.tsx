@@ -104,19 +104,32 @@ export default function Home() {
       const openTimestamp = Math.floor(Date.now() / 1000).toString();
       const openToken = await generateOpenToken(apiKey, openTimestamp);
 
-      const response = await fetch(
-        `${beUrl}/eoffice/api/v1/sdk/auth/generate-nonce-public-key`,
-        {
-          method: 'GET',
-          headers: {
-            'X-Timestamp': openTimestamp,
-            'Authorization': `Bearer ${openToken}`
-          }
-        }
-      );
+      const response = await fetch('/api/sdk/auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          beUrl,
+          openTimestamp,
+          openToken
+        })
+      });
 
       if (!response.ok) {
-        const errorText = await response.text().catch(() => response.statusText);
+        let errorText = response.statusText;
+
+        try {
+          const errorData = await response.json();
+          if (typeof errorData?.message === 'string') {
+            errorText = errorData.message;
+          } else {
+            errorText = JSON.stringify(errorData);
+          }
+        } catch {
+          errorText = await response.text().catch(() => response.statusText);
+        }
+
         throw new Error(`API Error (${response.status}): ${errorText}`);
       }
 
@@ -154,7 +167,7 @@ export default function Home() {
       let errorMessage = 'An error occurred';
       
       if (err instanceof TypeError && err.message.includes('fetch')) {
-        errorMessage = `Network Error: Unable to connect to ${beUrl}. This might be a CORS issue or the server is unreachable.`;
+        errorMessage = 'Network Error: Unable to call local API route. Check if dev server is running.';
       } else if (err instanceof Error) {
         errorMessage = err.message;
       }
