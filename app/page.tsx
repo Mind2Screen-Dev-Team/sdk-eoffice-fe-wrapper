@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 async function sha256Hex(text: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -86,12 +86,92 @@ export default function Home() {
   const [sdkUrl, setSdkUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  
+  const [apiKeyHistory, setApiKeyHistory] = useState<string[]>([]);
+  const [nipHistory, setNipHistory] = useState<string[]>([]);
+  const [beUrlHistory, setBeUrlHistory] = useState<string[]>([]);
+  const [feUrlHistory, setFeUrlHistory] = useState<string[]>([]);
+  const [activeField, setActiveField] = useState<string | null>(null);
+  
+  const apiKeyRef = useRef<HTMLDivElement>(null);
+  const nipRef = useRef<HTMLDivElement>(null);
+  const beUrlRef = useRef<HTMLDivElement>(null);
+  const feUrlRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const loadedApiKeyHistory = JSON.parse(localStorage.getItem('apiKeyHistory') || '[]');
+    const loadedNipHistory = JSON.parse(localStorage.getItem('nipHistory') || '[]');
+    const loadedBeUrlHistory = JSON.parse(localStorage.getItem('beUrlHistory') || '[]');
+    const loadedFeUrlHistory = JSON.parse(localStorage.getItem('feUrlHistory') || '[]');
+    
+    setApiKeyHistory(loadedApiKeyHistory);
+    setNipHistory(loadedNipHistory);
+    setBeUrlHistory(loadedBeUrlHistory);
+    setFeUrlHistory(loadedFeUrlHistory);
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        apiKeyRef.current && !apiKeyRef.current.contains(event.target as Node) &&
+        nipRef.current && !nipRef.current.contains(event.target as Node) &&
+        beUrlRef.current && !beUrlRef.current.contains(event.target as Node) &&
+        feUrlRef.current && !feUrlRef.current.contains(event.target as Node)
+      ) {
+        setActiveField(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const saveToHistory = (key: string, value: string, history: string[], setHistory: (h: string[]) => void) => {
+    if (!value.trim()) return;
+    
+    const newHistory = [value, ...history.filter(item => item !== value)].slice(0, 10);
+    setHistory(newHistory);
+    localStorage.setItem(key, JSON.stringify(newHistory));
+  };
+
+  const handleInputChange = (field: string, value: string, setter: (v: string) => void) => {
+    setter(value);
+    setActiveField(field);
+  };
+
+  const selectSuggestion = (field: string, value: string) => {
+    switch(field) {
+      case 'apiKey':
+        setApiKey(value);
+        break;
+      case 'nip':
+        setNip(value);
+        break;
+      case 'beUrl':
+        setBeUrl(value);
+        break;
+      case 'feUrl':
+        setFeUrl(value);
+        break;
+    }
+    setActiveField(null);
+  };
+
+  const getFilteredSuggestions = (history: string[], currentValue: string) => {
+    if (!currentValue.trim()) return history;
+    return history.filter(item => 
+      item.toLowerCase().includes(currentValue.toLowerCase())
+    );
+  };
 
   const generateSDKToken = async () => {
     if (!apiKey || !nip || !beUrl || !feUrl) {
       setError("Please enter API Key, NIP, BE URL, and FE URL");
       return;
     }
+
+    saveToHistory('apiKeyHistory', apiKey, apiKeyHistory, setApiKeyHistory);
+    saveToHistory('nipHistory', nip, nipHistory, setNipHistory);
+    saveToHistory('beUrlHistory', beUrl, beUrlHistory, setBeUrlHistory);
+    saveToHistory('feUrlHistory', feUrl, feUrlHistory, setFeUrlHistory);
 
     setLoading(true);
     setError("");
@@ -193,59 +273,115 @@ export default function Home() {
 
         <div className="flex flex-col gap-6 border-t border-zinc-200 dark:border-zinc-800 pt-6">
           {/* API Key Input */}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 relative" ref={apiKeyRef}>
             <label className="text-sm font-semibold text-black dark:text-white">
               API Key
             </label>
             <input
               type="text"
               value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
+              onChange={(e) => handleInputChange('apiKey', e.target.value, setApiKey)}
+              onFocus={() => setActiveField('apiKey')}
               placeholder="Enter your API Key"
               className="w-full px-4 py-3 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-black dark:text-white placeholder-zinc-500 dark:placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            {activeField === 'apiKey' && getFilteredSuggestions(apiKeyHistory, apiKey).length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg shadow-lg max-h-48 overflow-y-auto z-10">
+                {getFilteredSuggestions(apiKeyHistory, apiKey).map((item, index) => (
+                  <div
+                    key={index}
+                    onClick={() => selectSuggestion('apiKey', item)}
+                    className="px-4 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 cursor-pointer text-black dark:text-white text-sm border-b border-zinc-200 dark:border-zinc-700 last:border-b-0"
+                  >
+                    {item}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* NIP Input */}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 relative" ref={nipRef}>
             <label className="text-sm font-semibold text-black dark:text-white">
               NIP
             </label>
             <input
               type="text"
               value={nip}
-              onChange={(e) => setNip(e.target.value)}
+              onChange={(e) => handleInputChange('nip', e.target.value, setNip)}
+              onFocus={() => setActiveField('nip')}
               placeholder="Enter your NIP"
               className="w-full px-4 py-3 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-black dark:text-white placeholder-zinc-500 dark:placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            {activeField === 'nip' && getFilteredSuggestions(nipHistory, nip).length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg shadow-lg max-h-48 overflow-y-auto z-10">
+                {getFilteredSuggestions(nipHistory, nip).map((item, index) => (
+                  <div
+                    key={index}
+                    onClick={() => selectSuggestion('nip', item)}
+                    className="px-4 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 cursor-pointer text-black dark:text-white text-sm border-b border-zinc-200 dark:border-zinc-700 last:border-b-0"
+                  >
+                    {item}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* BE URL Input */}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 relative" ref={beUrlRef}>
             <label className="text-sm font-semibold text-black dark:text-white">
               BE URL
             </label>
             <input
               type="text"
               value={beUrl}
-              onChange={(e) => setBeUrl(e.target.value)}
+              onChange={(e) => handleInputChange('beUrl', e.target.value, setBeUrl)}
+              onFocus={() => setActiveField('beUrl')}
               placeholder="Enter Backend URL"
               className="w-full px-4 py-3 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-black dark:text-white placeholder-zinc-500 dark:placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            {activeField === 'beUrl' && getFilteredSuggestions(beUrlHistory, beUrl).length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg shadow-lg max-h-48 overflow-y-auto z-10">
+                {getFilteredSuggestions(beUrlHistory, beUrl).map((item, index) => (
+                  <div
+                    key={index}
+                    onClick={() => selectSuggestion('beUrl', item)}
+                    className="px-4 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 cursor-pointer text-black dark:text-white text-sm border-b border-zinc-200 dark:border-zinc-700 last:border-b-0"
+                  >
+                    {item}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* FE URL Input */}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 relative" ref={feUrlRef}>
             <label className="text-sm font-semibold text-black dark:text-white">
               FE URL
             </label>
             <input
               type="text"
               value={feUrl}
-              onChange={(e) => setFeUrl(e.target.value)}
+              onChange={(e) => handleInputChange('feUrl', e.target.value, setFeUrl)}
+              onFocus={() => setActiveField('feUrl')}
               placeholder="Enter Frontend URL"
               className="w-full px-4 py-3 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-black dark:text-white placeholder-zinc-500 dark:placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            {activeField === 'feUrl' && getFilteredSuggestions(feUrlHistory, feUrl).length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg shadow-lg max-h-48 overflow-y-auto z-10">
+                {getFilteredSuggestions(feUrlHistory, feUrl).map((item, index) => (
+                  <div
+                    key={index}
+                    onClick={() => selectSuggestion('feUrl', item)}
+                    className="px-4 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 cursor-pointer text-black dark:text-white text-sm border-b border-zinc-200 dark:border-zinc-700 last:border-b-0"
+                  >
+                    {item}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Generate Button */}
