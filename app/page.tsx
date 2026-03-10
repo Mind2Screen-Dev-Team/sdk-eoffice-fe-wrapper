@@ -86,7 +86,7 @@ export default function Home() {
   const [sdkUrl, setSdkUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [draftData, setDraftData] = useState<any>(null);
+  const [draftData, setDraftData] = useState<any[]>([]);
   
   const [apiKeyHistory, setApiKeyHistory] = useState<string[]>([]);
   const [nipHistory, setNipHistory] = useState<string[]>([]);
@@ -123,7 +123,15 @@ export default function Home() {
 
     const handleMessage = (event: MessageEvent) => {
       if (event.data) {
-        setDraftData(event.data);
+        const newMessage = {
+          id: Date.now(),
+          data: event.data,
+          origin: event.origin,
+          source: event.source ? 'Window' : null,
+          timeStamp: event.timeStamp,
+          type: event.type
+        };
+        setDraftData(prev => [newMessage, ...prev]);
       }
     };
 
@@ -460,6 +468,49 @@ export default function Home() {
             </div>
           )}
 
+          {/* PostMessage Event Display - Above iframe */}
+          {draftData.length > 0 && (
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-black dark:text-white">
+                  PostMessage Events ({draftData.length})
+                </h3>
+                <button
+                  onClick={() => setDraftData([])}
+                  className="px-4 py-2 text-sm rounded-md bg-red-600 hover:bg-red-700 text-white transition-colors"
+                >
+                  Clear All
+                </button>
+              </div>
+
+              {draftData.map((message, index) => (
+                <div key={message.id} className="flex flex-col gap-4 p-6 rounded-lg border border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/20">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-md font-semibold text-green-800 dark:text-green-300">
+                      {index === 0 ? 'Event PostMessage (New)' : `Event PostMessage (Old ${index})`}
+                    </h4>
+                    <button
+                      onClick={() => setDraftData(prev => prev.filter(m => m.id !== message.id))}
+                      className="px-3 py-1 text-sm rounded-md bg-green-200 dark:bg-green-800 hover:bg-green-300 dark:hover:bg-green-700 text-green-800 dark:text-green-200 transition-colors"
+                    >
+                      Clear
+                    </button>
+                  </div>
+
+                  {/* Full Event Message as JSON */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-green-800 dark:text-green-300">
+                      Full Event Message
+                    </label>
+                    <div className="w-full px-4 py-3 rounded-lg border border-green-300 dark:border-green-700 bg-white dark:bg-green-950 text-green-900 dark:text-green-100 font-mono text-xs break-all max-h-96 overflow-y-auto">
+                      <pre>{JSON.stringify(message, null, 2)}</pre>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* SDK Embed Preview - Fullwidth */}
           {sdkUrl && (
             <div className="flex flex-col gap-2">
@@ -474,151 +525,6 @@ export default function Home() {
                   title="eOffice SDK Embed"
                 />
               </div>
-            </div>
-          )}
-
-          {/* Draft Data Display */}
-          {draftData && (
-            <div className="flex flex-col gap-4 p-6 rounded-lg border border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/20">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-green-800 dark:text-green-300">
-                  Draft Success Response
-                </h3>
-                <button
-                  onClick={() => setDraftData(null)}
-                  className="px-3 py-1 text-sm rounded-md bg-green-200 dark:bg-green-800 hover:bg-green-300 dark:hover:bg-green-700 text-green-800 dark:text-green-200 transition-colors"
-                >
-                  Clear
-                </button>
-              </div>
-
-              {/* Status */}
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-green-800 dark:text-green-300">
-                  Status
-                </label>
-                <div className="w-full px-4 py-2 rounded-lg border border-green-300 dark:border-green-700 bg-white dark:bg-green-950 text-green-900 dark:text-green-100 text-sm">
-                  {draftData.status}
-                </div>
-              </div>
-
-              {/* Draft Data */}
-              {draftData.data && (
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-green-800 dark:text-green-300">
-                    Draft Data
-                  </label>
-                  <div className="w-full px-4 py-3 rounded-lg border border-green-300 dark:border-green-700 bg-white dark:bg-green-950 text-green-900 dark:text-green-100 font-mono text-xs break-all max-h-96 overflow-y-auto">
-                    <pre>{JSON.stringify(draftData.data, null, 2)}</pre>
-                  </div>
-                </div>
-              )}
-
-              {/* Individual Fields */}
-              {draftData.data && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {draftData.data.id && (
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm font-semibold text-green-800 dark:text-green-300">
-                        ID
-                      </label>
-                      <div className="px-4 py-2 rounded-lg border border-green-300 dark:border-green-700 bg-white dark:bg-green-950 text-green-900 dark:text-green-100 text-sm">
-                        {draftData.data.id}
-                      </div>
-                    </div>
-                  )}
-
-                  {draftData.data.objectId && (
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm font-semibold text-green-800 dark:text-green-300">
-                        Object ID
-                      </label>
-                      <div className="px-4 py-2 rounded-lg border border-green-300 dark:border-green-700 bg-white dark:bg-green-950 text-green-900 dark:text-green-100 text-sm">
-                        {draftData.data.objectId}
-                      </div>
-                    </div>
-                  )}
-
-                  {draftData.data.sender && (
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm font-semibold text-green-800 dark:text-green-300">
-                        Sender
-                      </label>
-                      <div className="px-4 py-2 rounded-lg border border-green-300 dark:border-green-700 bg-white dark:bg-green-950 text-green-900 dark:text-green-100 text-sm">
-                        {draftData.data.sender}
-                      </div>
-                    </div>
-                  )}
-
-                  {draftData.data.status && (
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm font-semibold text-green-800 dark:text-green-300">
-                        Draft Status
-                      </label>
-                      <div className="px-4 py-2 rounded-lg border border-green-300 dark:border-green-700 bg-white dark:bg-green-950 text-green-900 dark:text-green-100 text-sm">
-                        {draftData.data.status}
-                      </div>
-                    </div>
-                  )}
-
-                  {draftData.data.isActive !== undefined && (
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm font-semibold text-green-800 dark:text-green-300">
-                        Is Active
-                      </label>
-                      <div className="px-4 py-2 rounded-lg border border-green-300 dark:border-green-700 bg-white dark:bg-green-950 text-green-900 dark:text-green-100 text-sm">
-                        {draftData.data.isActive ? 'Yes' : 'No'}
-                      </div>
-                    </div>
-                  )}
-
-                  {draftData.data.createdAt && (
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm font-semibold text-green-800 dark:text-green-300">
-                        Created At
-                      </label>
-                      <div className="px-4 py-2 rounded-lg border border-green-300 dark:border-green-700 bg-white dark:bg-green-950 text-green-900 dark:text-green-100 text-sm">
-                        {new Date(draftData.data.createdAt).toLocaleString()}
-                      </div>
-                    </div>
-                  )}
-
-                  {draftData.data.updatedAt && (
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm font-semibold text-green-800 dark:text-green-300">
-                        Updated At
-                      </label>
-                      <div className="px-4 py-2 rounded-lg border border-green-300 dark:border-green-700 bg-white dark:bg-green-950 text-green-900 dark:text-green-100 text-sm">
-                        {new Date(draftData.data.updatedAt).toLocaleString()}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Paragraph */}
-              {draftData.data?.paragraph && (
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-green-800 dark:text-green-300">
-                    Paragraph
-                  </label>
-                  <div className="px-4 py-3 rounded-lg border border-green-300 dark:border-green-700 bg-white dark:bg-green-950 text-green-900 dark:text-green-100 text-sm whitespace-pre-wrap">
-                    {draftData.data.paragraph}
-                  </div>
-                </div>
-              )}
-
-              {/* Attachment */}
-              {draftData.data?.attachment && (
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-green-800 dark:text-green-300">
-                    Attachment
-                  </label>
-                  <div className="px-4 py-3 rounded-lg border border-green-300 dark:border-green-700 bg-white dark:bg-green-950 text-green-900 dark:text-green-100 font-mono text-xs break-all">
-                    <pre>{JSON.stringify(draftData.data.attachment, null, 2)}</pre>
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
